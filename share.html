@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Share-schedule</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header>
+        <h1>スケジュール共有</h1>
+    </header>
+
+    <button class="btn" id="prev" type="button">前の月</button>
+    <button class="btn" id="next" type="button">次の月</button>
+    <a class="topic" href="https://co-trip.jp/search/pref:40/">★福岡お出かけ情報★</a>
+    <a class="topic" href="https://www.jma.go.jp/jp/week/346.html">★福岡の天気★</a>
+    <a class="topic" href="https://www.facebook.com/groups/348774469138681/?ref=bookmarks">★G's Fukuoka★</a>
+    <a class="topic" href="https://gbtnta.jp/webflightschedule/">★飛行機時刻★</a>
+
+    <div class="main">
+        <div id="calendar"></div>
+        <div class="main2">
+            <a>名前:
+                <select id='name' type='text'>
+                    <option class='name' value="ようすけ">ようすけ</option>
+                    <option class='name' value="はなこ">はなこ</option>
+                    <option class='name' value="共通">共通</option>
+                </select></a>
+            <a>日付: <input id='date' type='date'></a>
+            <div>
+                <a>予定: <textarea name='' id='text' cols='67' rows='2'></textarea></a>
+                <button class="send" id='send'>登録</button>
+            </div>
+            <h2>今後のスケジュール</h2>
+            <div id="schedule" class="schedule"></div>
+        </div>
+    </div>
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <!-- < !--The core Firebase JS SDK is always required and must be listed first--> -->
+    <script src="https://www.gstatic.com/firebasejs/6.5.0/firebase.js"></script>
+
+    <!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#config-web-app -->
+
+    <script>
+        // Your web app's Firebase configuration
+        var firebaseConfig = {
+            apiKey: "AIzaSyDuA0rl4dXOcZ5L-RGr9ZXuXrjlYC_VDkw",
+            authDomain: "share-de5bc.firebaseapp.com",
+            databaseURL: "https://share-de5bc.firebaseio.com",
+            projectId: "share-de5bc",
+            storageBucket: "",
+            messagingSenderId: "620977818801",
+            appId: "1:620977818801:web:f3b69ff9b56ba236"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore().collection('share');
+    </script>
+
+    <script>
+
+
+
+        //カレンダーの作成
+
+
+        const weeks = ['日', '月', '火', '水', '木', '金', '土']     //配列：weeks
+        const date = new Date()           //変数：Date
+        let year = date.getFullYear()     //変数：year は、今年の年を取得する
+        let month = date.getMonth() + 1    //変数：month  は、今の月を取得する
+        const config = {                   //変数：configは、何ヶ月表示するか（show）
+            show: 2,                        //３ヶ月分表示する
+        }
+
+        function showCalendar(year, month) {        //関数：showcalendarは、年と月を
+            for (i = 0; i < config.show; i++) {  //繰り返し処理。１から、show(3ヶ月)以内。１つずつ加える
+                const calendarHtml = createCalendar(year, month)  //変数：calendarHtml は、(年・月)の要素を作成する.作成の流れは下の関数
+                const sec = document.createElement('section')     //変数：set は、セクションの要素を作成する
+                sec.innerHTML = calendarHtml          //作成した(年・月)要素をHTMLへ入れる
+                document.querySelector('#calendar').appendChild(sec)  //id=calendar に作成したセクション、要素を返す。
+
+                month++        // 月が１増えた時
+                if (month > 12) {  // 12以上なら
+                    year++         //  1年増やす
+                    month = 1      //  月は１月
+                }
+            }
+        }
+
+        //関数：createCalendar は,カレンダーを作成する流れ
+
+        function createCalendar(year, month) {
+            const startDate = new Date(year, month - 1, 1) // 変数：startDate 月の最初の日を取得 ?
+            const endDate = new Date(year, month, 0) // 変数：endDate 月の最後の日を取得 ?
+            const endDayCount = endDate.getDate() // 変数：endDayCount 月の末日 ?
+            const lastMonthEndDate = new Date(year, month - 2, 0) // 変数：前月の最後の日の情報 ?
+            const lastMonthendDayCount = lastMonthEndDate.getDate() // 変数：lastMonthEndDate 前月の末日 ?
+            const startDay = startDate.getDay() // 変数：startDay 月の最初の日の曜日を取得
+            let dayCount = 1 // 変数：dayCount  日にちのカウント
+            let calendarHtml = '' // 変数：calendarHtml HTMLを組み立てる変数
+
+            calendarHtml += '<h1>' + year + '/' + month + '</h1>' //<h1>タグ内に取得した年・月を入れる
+            calendarHtml += '<table>'  //カレンダーのテーブルも入れる 
+
+            // 曜日の行を作成
+            for (let i = 0; i < weeks.length; i++) {   //１から始まる。１週間(７)以内。１ずつ増える。
+                calendarHtml += '<td>' + weeks[i] + '</td>'  //カレンダーの<td>タグに１週間入れる
+            }
+
+            for (let w = 0; w < 6; w++) {   // 変数wは１、６以下、１ずつ増える
+                calendarHtml += '<tr>'    //
+
+                for (let d = 0; d < 7; d++) {   //変数dは、７以下、１ずつ増える
+                    if (w == 0 && d < startDay) {    // 1行目で1日の曜日の前
+                        let num = lastMonthendDayCount - startDay + d + 1   // 変数：num ?
+                        calendarHtml += '<td class="is-disabled">' + num + '</td>'  //HTMLへ入れる：(前の月の薄い部分)
+                    } else if (dayCount > endDayCount) {   // 末尾の日数を超えたら
+                        let num = dayCount - endDayCount  //変数num: ?
+                        calendarHtml += '<td class="is-disabled">' + num + '</td>' //HTMLのカレンダー日付に入れる
+                        dayCount++   //1日プラス
+                    } else {   //それ以外
+                        calendarHtml += `<td class="calendar_td" data-date="${year}-${month}-${dayCount}">${dayCount}</td>`// ?
+                        dayCount++   //1日プラス
+                    }
+                }
+                calendarHtml += '</tr>' //<tr>タグに代入
+            }
+            calendarHtml += '</table>'  //<table>タグに代入
+
+            return calendarHtml
+        }
+
+        //関数：moveCalendar 
+
+        function moveCalendar(e) {
+            document.querySelector('#calendar').innerHTML = ''   //
+
+            if (e.target.id === 'prev') {   //ボタン：前の月を押したら
+                month--    //１ヶ月戻る
+
+                if (month < 1) {    //月hが１以下なら
+                    year--           //年も1年減らす
+                    month = 12       //12月にする
+                }
+            }
+
+            if (e.target.id === 'next') {     //ボタン：次の月を押したら
+                month++  //１ヶ月増える
+
+
+                if (month > 12) {  //12月以上の時
+                    year++       //年も1年プラス
+                    month = 1    //月は1月から
+                }
+            }
+
+            showCalendar(year, month)
+        }
+
+        document.querySelector('#prev').addEventListener('click', moveCalendar)  //次の月を押したら動作が起こる。
+        document.querySelector('#next').addEventListener('click', moveCalendar)  //前の月を押したら動作が起こる。
+
+        //クリックした時の動き
+
+        $(function () {
+            $(document).on('click', 'td.calendar_td', function () {
+                $('td.calendar_td').css('background-color', '');//背景色リセット
+                // $('#date').text($(this).data('date') + ' :  ');クリックで日付に入れたかったけど入らなかった。。
+                $(this).css('background-color', 'yellow');
+            });
+        });
+        showCalendar(year, month)
+
+
+
+        // 登録ボタンをクリックするとfirebaseにデータを送信し、テキスト欄は空欄に。
+        $('#send').on('click', function () {
+            if (document.getElementById('name').value == "") {
+                alert('名前を記入してください')
+                return;
+            }
+            if (document.getElementById('date').value == "") {
+                alert('日付を選択してください')
+                return;
+            }
+            if (document.getElementById('text').value == "") {
+                alert('予定を記入してください')
+                return;
+            }
+            const data = {
+                name: $('#name').val(),
+                date: $('#date').val(),
+                text: $('#text').val()
+            };
+            $('#name,#text,#date').val('');
+            db.add(data);
+
+        });
+
+
+
+        // データをfirebaseからリアルタイムに取得する処理
+        db.orderBy('date', 'asc').onSnapshot(function (querySnapshot) {
+            let str = '';
+            querySnapshot.forEach(function (doc) {
+                // alert('ok');
+                // console.log(doc.id);
+                // console.log(doc.data());
+                let i = 0;
+                i++;
+                str += '<div class="str" id="' + doc.id + '">';
+                str += '<p id="name2" class="str1">' + doc.data().date + '</p>';
+                str += '<p class="str1">' + doc.data().name + '</p>';
+                str += '<p class="str2">' + doc.data().text + '</p>';
+                str += '<button class="comp" id="comp' + i + '">完了</button>';
+                str += '</div>'
+
+            });
+
+
+            $('#schedule').html(str); //今後のスケジュールとして代入
+            // console.log(str)
+
+        });
+
+        //わかりません。。。。。。。。。
+        //完了ボタンをクリックで、予定を消去する処理
+
+        $("#comp").on("click", function () {
+            $(this).fadeOut(1000);
+            alert('ok')
+        });
+
+        /* id=compにiをつけましたが、全てcomp1の認識になります。おそらくforEachの処理だと思いますが、
+        検索でasを使う手法はPHPばかりが出てきます。。*/
+
+    //２回入力すると、３回目はアラートで名前を入力してくださいとなる。更新するといけるのはクリック回数の何か？
+    //人物ごとに予定の色を変えたいがstrのidaが反映されない。。。
+     //完了ボタンで消したいがidaが反映されない。。。
+
+
+
+    </script>
+
+
+</body>
+
+</html>
